@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import authController from '../controllers/auth.controller';
+import { toNodeHandler } from "better-auth/node";
+import { auth } from "../config/auth";
 
 const router = Router();
 
-router.get("/", authController.helloWorld);
+router.all("/*", toNodeHandler(auth));
 
 export const authRoutes = router;

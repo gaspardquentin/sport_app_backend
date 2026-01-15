@@ -1,9 +1,12 @@
 project-root/
 ├── src/
 │   ├── config/
-│   │   ├── database.ts
+│   │   ├── auth.ts
 │   │   ├── env.ts
 │   │   └── logger.ts
+│   ├── db/
+│   │   ├── index.ts
+│   │   └── schema.ts
 │   ├── controllers/
 │   │   ├── auth.controller.ts
 │   │   └── user.controller.ts
