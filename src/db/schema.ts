@@ -28,7 +28,9 @@ export const account = pgTable("account", {
   refreshToken: text("refreshToken"),
   idToken: text("idToken"),
   expiresAt: timestamp("expiresAt"),
-  password: text("password")
+  password: text("password"),
+  createdAt: timestamp("createdAt").notNull(),
+  updatedAt: timestamp("updatedAt").notNull()
 });
 
 export const verification = pgTable("verification", {

@@ -1,7 +1,7 @@
 import express, { Application } from 'express';
 import helmet from 'helmet';
 import cors from "cors";
-import routes from "./routes"
+import routes from "./routes/index.js"
 
 const app: Application = express();
 
@@ -9,7 +9,7 @@ app.use(helmet());
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: true, //process.env.CORS_ORIGIN || '*',
   credentials: true
 }));
 

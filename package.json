@@ -4,11 +4,11 @@
   "description": "The backend of the sport_app MVP",
   "license": "ISC",
   "author": "Gaspard QUENTIN",
-  "type": "commonjs",
+  "type": "module",
   "main": "index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "ts-node src/server.ts",
+    "start": "tsx src/server.ts",
     "build": "tsc"
   },
   "dependencies": {
@@ -28,6 +28,7 @@
     "@types/pg": "^8.16.0",
     "drizzle-kit": "^0.31.8",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }
