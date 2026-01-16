@@ -9,6 +9,27 @@ export const auth = betterAuth({
     provider: "pg",
     schema: schema
   }),
+  user: {
+    additionalFields: {
+      role: {
+        type: "string",
+        required: false,
+        defaultValue: "athlete",
+        input: true,
+      }
+    }
+  },
+  callbacks: {
+    session: async ({ session, user }) => {
+      return {
+        ...session,
+        user: {
+          ...session.user,
+          role: user.role
+        }
+      }
+    }
+  },
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
       await sendEmail({

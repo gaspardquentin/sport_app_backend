@@ -1,5 +1,9 @@
-import { pgTable, text, timestamp, boolean, uuid } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, text, timestamp, boolean, uuid } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+
+
+export const roleEnum = pgEnum('role', ['coach', 'athlete']);
+
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -7,6 +11,7 @@ export const user = pgTable("user", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("emailVerified").notNull(),
   image: text("image"),
+  role: roleEnum("role").notNull().default("athlete"),
   createdAt: timestamp("createdAt").notNull(),
   updatedAt: timestamp("updatedAt").notNull()
 });
@@ -14,6 +19,9 @@ export const user = pgTable("user", {
 export const session = pgTable("session", {
   id: text("id").primaryKey(),
   expiresAt: timestamp("expiresAt").notNull(),
+  token: text("token").notNull().unique(),
+  createdAt: timestamp("createdAt").notNull(),
+  updatedAt: timestamp("updatedAt").notNull(),
   ipAddress: text("ipAddress"),
   userAgent: text("userAgent"),
   userId: text("userId").notNull().references(() => user.id)

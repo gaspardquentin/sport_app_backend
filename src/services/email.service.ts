@@ -1,4 +1,5 @@
-import nodemailer from "nodemailer";
+
+//import nodemailer from "nodemailer";
 
 interface SendEmailOptions {
   to: string;
@@ -7,6 +8,7 @@ interface SendEmailOptions {
   html?: string;
 }
 
+/*
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.example.com",
   port: parseInt(process.env.SMTP_PORT || "587"),
@@ -34,4 +36,10 @@ export const sendEmail = async ({ to, subject, text, html }: SendEmailOptions) =
     console.error("Error sending email:", error);
     throw error;
   }
+};
+
+*/
+
+export const sendEmail = async ({ to, subject, text, html }: SendEmailOptions) => {
+  console.log(`email : to ${to} ; subject ${subject}`);
 };
