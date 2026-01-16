@@ -2,12 +2,23 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "../db/index.js"; // Adjust path if needed
 import * as schema from "../db/schema.js";
+import { sendEmail } from "../services/email.service.js";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: schema
   }),
+  emailVerification: {
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendEmail({
+        to: user.email,
+        subject: "Verify your email address",
+        text: `Click the link to verify your email: ${url}`,
+      });
+    },
+    sendOnSignIn: true,
+  },
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true
