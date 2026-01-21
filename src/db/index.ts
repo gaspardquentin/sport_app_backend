@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import * as schema from "./schema.js";
+import * as authSchema from "./schema.js";
+import * as trainingSchema from "./training.js";
 import "dotenv/config";
 
 if (!process.env.DATABASE_URL) {
@@ -10,5 +11,7 @@ if (!process.env.DATABASE_URL) {
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
+
+export const schema = { ...authSchema, ...trainingSchema };
 
 export const db = drizzle(pool, { schema });

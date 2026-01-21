@@ -2,22 +2,6 @@ import { pgTable, pgEnum, text, integer, timestamp, boolean, uuid, check, interv
 import { sql } from "drizzle-orm";
 import { user } from "./schema";
 
-
-export const account = pgTable("account", {
-  id: text("id").primaryKey(),
-  accountId: text("accountId").notNull(),
-  providerId: text("providerId").notNull(),
-  userId: text("userId").notNull().references(() => user.id),
-  accessToken: text("accessToken"),
-  refreshToken: text("refreshToken"),
-  idToken: text("idToken"),
-  expiresAt: timestamp("expiresAt"),
-  password: text("password"),
-  createdAt: timestamp("createdAt").notNull(),
-  updatedAt: timestamp("updatedAt").notNull()
-});
-
-//TODO: maybe replace this with another table ? Or fill it with more data
 export const exerciseType = pgEnum('exercise_type', ['cardio', 'strengh', 'flexibility', 'skill', 'other']);
 
 /*
@@ -79,6 +63,7 @@ export const dayPlanWodBlocs = pgTable("day_plan_wod_blocs", {
 export const enrollments = pgTable("enrollments", {
   userId: text("user_id").notNull().references(() => user.id),
   programId: text("program_id").notNull().references(() => programs.id),
+  currentDay: integer("current_day").notNull().default(1),
   joinedAt: timestamp("joined_at").defaultNow().notNull(),
 }, (table) => ({
   pk: primaryKey({ columns: [table.userId, table.programId] }),
