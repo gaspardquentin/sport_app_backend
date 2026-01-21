@@ -1,0 +1,134 @@
+@startuml
+
+!theme plain
+hide circle
+skinparam linetype ortho
+
+enum Role {
+  coach
+  athlete
+}
+
+enum ExerciseType {
+  cardio
+  strengh
+  flexibility
+  skill
+  other
+}
+
+entity "User" as user {
+  *id : text <<PK>>
+  --
+  name : text
+  email : text
+  emailVerified : boolean
+  image : text
+  role : Role
+  createdAt : timestamp
+  updatedAt : timestamp
+}
+
+entity "Session" as session {
+  *id : text <<PK>>
+  --
+  token : text
+  expiresAt : timestamp
+  ipAddress : text
+  userAgent : text
+  *userId : text <<FK>>
+  createdAt : timestamp
+  updatedAt : timestamp
+}
+
+entity "Account" as account {
+  *id : text <<PK>>
+  --
+  accountId : text
+  providerId : text
+  *userId : text <<FK>>
+  accessToken : text
+  refreshToken : text
+  idToken : text
+  expiresAt : timestamp
+  password : text
+  createdAt : timestamp
+  updatedAt : timestamp
+}
+
+entity "Verification" as verification {
+  *id : text <<PK>>
+  --
+  identifier : text
+  value : text
+  expiresAt : timestamp
+  createdAt : timestamp
+  updatedAt : timestamp
+}
+
+entity "Exercises" as exercises {
+  *id : text <<PK>>
+  --
+  name : text
+  sets : integer
+  reps : integer
+  time : interval
+  type : ExerciseType
+}
+
+entity "WodBlocs" as wod_blocs {
+  *id : text <<PK>>
+  --
+  title : text
+  type : ExerciseType
+}
+
+entity "WodBlocExercises" as wod_bloc_exercises {
+  *wodBlocId : text <<FK>>
+  *exerciseId : text <<FK>>
+  --
+}
+
+entity "Programs" as programs {
+  *id : text <<PK>>
+  --
+  title : text
+  description : text
+}
+
+entity "DayPlans" as day_plans {
+  *id : text <<PK>>
+  --
+  *programId : text <<FK>>
+  dayNumber : integer
+}
+
+entity "DayPlanWodBlocs" as day_plan_wod_blocs {
+  *dayPlanId : text <<FK>>
+  *wodBlocId : text <<FK>>
+  --
+  order : integer
+}
+
+entity "Enrollments" as enrollments {
+  *userId : text <<FK>>
+  *programId : text <<FK>>
+  --
+  joinedAt : timestamp
+}
+
+' Relationships
+user ||..o{ session : "has"
+user ||..o{ account : "has"
+user ||..o{ enrollments : "enrolls in"
+
+programs ||..o{ enrollments : "has users"
+programs ||..o{ day_plans : "composed of"
+
+day_plans ||..o{ day_plan_wod_blocs : "includes"
+wod_blocs ||..o{ day_plan_wod_blocs : "included in"
+
+wod_blocs ||..o{ wod_bloc_exercises : "contains"
+exercises ||..o{ wod_bloc_exercises : "part of"
+
+@enduml
