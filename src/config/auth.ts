@@ -44,11 +44,13 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: true
   },
+  baseURL: process.env.BETTER_AUTH_URL,
   basePath: "/api/v1/auth",
   trustedOrigins: [
     "null",
     "http://127.0.0.1:5500",
-    "http://localhost:5500"
+    "http://localhost:5500",
+    "http://localhost:3000"
   ],
   socialProviders: {}
 });

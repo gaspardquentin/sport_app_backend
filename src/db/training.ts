@@ -1,6 +1,6 @@
 import { pgTable, pgEnum, text, integer, timestamp, boolean, uuid, check, interval, primaryKey } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import { user } from "./schema";
+import { user } from "./schema.js";
 
 export const exerciseType = pgEnum('exercise_type', ['cardio', 'strengh', 'flexibility', 'skill', 'other']);
 
@@ -44,6 +44,9 @@ export const programs = pgTable("programs", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description"),
+  creatorId: text("creator_id").notNull().references(() => user.id),
+  creationDate: timestamp("creation_date").defaultNow().notNull(),
+  lastEditDate: timestamp("last_edit_date").defaultNow().notNull(),
 });
 
 export const dayPlans = pgTable("day_plans", {
