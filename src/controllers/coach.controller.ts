@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { db } from '../db/index.js';
 import { user as userSchema } from '../db/schema.js';
 import { enrollments, programs } from '../db/training.js';
-import { eq, and, like, isNull, ne } from 'drizzle-orm';
+import { eq, and, like, isNull, ne, or, ilike } from 'drizzle-orm';
 
 // GET /coach/athletes
 export const getCoachAthletes = async (req: Request, res: Response) => {
@@ -14,6 +14,7 @@ export const getCoachAthletes = async (req: Request, res: Response) => {
             id: userSchema.id,
             name: userSchema.name,
             email: userSchema.email,
+            age: userSchema.age,
             image: userSchema.image,
             role: userSchema.role,
         })
@@ -53,6 +54,7 @@ export const searchAvailableAthletes = async (req: Request, res: Response) => {
             id: userSchema.id,
             name: userSchema.name,
             email: userSchema.email,
+            age: userSchema.age,
             image: userSchema.image
         })
         .from(userSchema)
@@ -60,7 +62,10 @@ export const searchAvailableAthletes = async (req: Request, res: Response) => {
             and(
                 eq(userSchema.role, 'athlete'),
                 isNull(userSchema.coachId), // Only athletes without a coach
-                like(userSchema.name, `%${query}%`) // Simple case-sensitive search for now, adjust for case-insensitive if needed (ilike in Postgres)
+                or(
+                    ilike(userSchema.name, `%${query}%`), 
+                    ilike(userSchema.email, `%${query}%`)
+                )
             )
         )
         .limit(20);

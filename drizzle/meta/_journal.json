@@ -43,6 +43,13 @@
       "when": 1769121557534,
       "tag": "0005_white_wendell_rand",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1769431360053,
+      "tag": "0006_wealthy_sentinels",
+      "breakpoints": true
     }
   ]
 }

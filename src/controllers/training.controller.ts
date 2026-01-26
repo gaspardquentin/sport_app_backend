@@ -1,7 +1,9 @@
 import { Request, Response } from 'express';
 import { db } from '../db/index.js';
 import { enrollments, dayPlans, dayPlanWodBlocs, wodBlocs, wodBlocExercises, exercises } from '../db/training.js';
-import { eq, and, between, inArray, asc } from 'drizzle-orm';
+import { programPersonalizations } from '../db/ai_assistant.js';
+import { workoutFromJSON } from '../services/ai_assistant/serialization.js';
+import { eq, and, between, inArray, asc, desc } from 'drizzle-orm';
 
 export const getWeeklyPlan = async (req: Request, res: Response) => {
   try {
@@ -21,6 +23,28 @@ export const getWeeklyPlan = async (req: Request, res: Response) => {
       return;
     }
 
+    // 2. Check for active Personalization (AI Adaptation / Rescheduling)
+    // We check the first enrollment's current week for personalizations
+    const firstEnrollment = activeEnrollments[0];
+    const currentWeek = Math.ceil(firstEnrollment.currentDay / 7);
+    
+    const [personalization] = await db.select()
+      .from(programPersonalizations)
+      .where(and(
+        eq(programPersonalizations.userId, user.id),
+        eq(programPersonalizations.weekNumber, currentWeek)
+      ))
+      .orderBy(desc(programPersonalizations.createdAt))
+      .limit(1);
+
+    if (personalization) {
+      // If we have a personalization, we return it using the special serialization logic
+      const uiFormat = workoutFromJSON(personalization.data as any);
+      res.status(200).json(uiFormat);
+      return;
+    }
+
+    // 3. Fallback to standard DB query if no personalization exists
     // We will collect ALL days from ALL programs that match the current "Week" of that program
     let allDays: any[] = [];
 

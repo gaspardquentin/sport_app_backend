@@ -16,6 +16,26 @@ export const auth = betterAuth({
         required: false,
         defaultValue: "athlete",
         input: true,
+      },
+      age: {
+        type: "number",
+        required: false,
+        input: true,
+      },
+      gender: {
+        type: "string",
+        required: false,
+        input: true,
+      },
+      goals: {
+        type: "string", // Better Auth might handle JSON as string input or we handle it in client
+        required: false,
+        input: true,
+      },
+      availabilityPerWeek: {
+        type: "number",
+        required: false,
+        input: true,
       }
     }
   },

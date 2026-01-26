@@ -1,4 +1,4 @@
-import { pgTable, pgEnum, text, timestamp, boolean, uuid, AnyPgColumn } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, text, timestamp, boolean, uuid, AnyPgColumn, integer, jsonb } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 
@@ -11,6 +11,10 @@ export const user = pgTable("user", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("emailVerified").notNull(),
   image: text("image"),
+  age: integer("age").default(0),
+  gender: text("gender"),
+  goals: jsonb("goals"),
+  availabilityPerWeek: integer("availability_per_week").default(3),
   role: roleEnum("role").notNull().default("athlete"),
   coachId: text("coachId").references((): AnyPgColumn => user.id),
   createdAt: timestamp("createdAt").notNull(),
