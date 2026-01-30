@@ -64,10 +64,37 @@ export const dayPlanWodBlocs = pgTable("day_plan_wod_blocs", {
 }));
 
 export const enrollments = pgTable("enrollments", {
+
   userId: text("user_id").notNull().references(() => user.id),
+
   programId: text("program_id").notNull().references(() => programs.id),
+
   currentDay: integer("current_day").notNull().default(1),
+
   joinedAt: timestamp("joined_at").defaultNow().notNull(),
+
 }, (table) => ({
+
   pk: primaryKey({ columns: [table.userId, table.programId] }),
+
 }));
+
+
+
+export const defaultPrograms = pgTable("default_programs", {
+
+  id: text("id").primaryKey(),
+
+  programId: text("program_id").notNull().references(() => programs.id),
+
+  gender: text("gender"),
+
+  minAge: integer("min_age"),
+
+  maxAge: integer("max_age"),
+
+  goal: exerciseType("goal"),
+
+  level: text("level"),
+
+});
