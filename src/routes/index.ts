@@ -4,6 +4,8 @@ import { trainingRoutes } from "./training.routes.js";
 import { programRoutes } from "./program.routes.js";
 import { coachRoutes } from "./coach.routes.js";
 import aiAssistantRoutes from "./ai_assistant.js";
+import { goalsRoutes } from "./goals.routes.js";
+import { userRoutes } from "./user.routes.js";
 
 const router = Router();
 
@@ -12,5 +14,7 @@ router.use("/training", trainingRoutes);
 router.use("/programs", programRoutes);
 router.use("/coach", coachRoutes);
 router.use("/ai", aiAssistantRoutes);
+router.use("/goals", goalsRoutes);
+router.use("/users", userRoutes);
 
 export default router;

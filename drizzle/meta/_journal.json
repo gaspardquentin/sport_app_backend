@@ -50,6 +50,13 @@
       "when": 1769431360053,
       "tag": "0006_wealthy_sentinels",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1769945688104,
+      "tag": "0007_tan_tana_nile",
+      "breakpoints": true
     }
   ]
 }

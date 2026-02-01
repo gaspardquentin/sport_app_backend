@@ -171,3 +171,32 @@ export const getWeeklyPlan = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+export const enrollUser = async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+    const { programId } = req.body;
+    if (!programId) return res.status(400).json({ message: "Missing programId" });
+
+    // Check if already enrolled in this program
+    const existing = await db.select().from(enrollments)
+      .where(and(eq(enrollments.userId, user.id), eq(enrollments.programId, programId)));
+    
+    if (existing.length > 0) {
+      return res.status(200).json({ message: "Already enrolled" });
+    }
+
+    await db.insert(enrollments).values({
+      userId: user.id,
+      programId: programId,
+      currentDay: 1,
+    });
+
+    res.status(201).json({ message: "Enrolled successfully" });
+  } catch (error) {
+    console.error("Error enrolling user:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
