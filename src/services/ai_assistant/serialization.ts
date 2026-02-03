@@ -52,7 +52,8 @@ export async function serializeProgramWeek(programId: string, weekNumber: number
       sets: exercises.sets,
       reps: exercises.reps,
       time: exercises.time,
-      type: exercises.type
+      type: exercises.type,
+      muscleGroup: exercises.muscleGroup
     })
       .from(wodBlocExercises)
       .innerJoin(exercises, eq(wodBlocExercises.exerciseId, exercises.id))
@@ -73,7 +74,8 @@ export async function serializeProgramWeek(programId: string, weekNumber: number
           sets: e.sets,
           reps: e.reps || undefined,
           time: e.time || undefined,
-          type: e.type || undefined
+          type: e.type || undefined,
+          muscleGroup: e.muscleGroup || undefined
         }))
       };
     });

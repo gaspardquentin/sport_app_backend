@@ -1,0 +1,2 @@
+CREATE TYPE "public"."muscle_groups" AS ENUM('legs', 'arms', 'chest', 'back', 'shoulders', 'abs', 'full_body');--> statement-breakpoint
+ALTER TABLE "exercises" ADD COLUMN "muscle_group" "muscle_groups";

@@ -6,73 +6,79 @@ import {
   TrainingLogicProvider 
 } from './interfaces.js';
 import { db } from '../../db/index.js';
-import { programs } from '../../db/training.js';
-import { goals } from '../../db/goals.js';
+import { programs, defaultPrograms } from '../../db/training.js';
 import { serializeProgramWeek } from './serialization.js';
-import { eq, inArray } from 'drizzle-orm';
-
-const SYSTEM_ADMIN_ID = 'system_admin_001';
+import { eq } from 'drizzle-orm';
 
 export const deterministicLogic: TrainingLogicProvider = {
   adaptProgramForInjury: async (program: ProgramJSON, injury: InjuryDTO): Promise<ProgramJSON> => {
     console.log(`[DeterministicLogic] Adapting program for injury: ${injury.description}`);
-    return { ...program };
+    
+    // Deep clone to avoid mutating original
+    const newProgram: ProgramJSON = JSON.parse(JSON.stringify(program));
+    
+    if (!injury.affectedBodyParts || injury.affectedBodyParts.length === 0) {
+      return newProgram;
+    }
+
+    newProgram.weeks.forEach(week => {
+      week.days.forEach(day => {
+        // 1. Filter exercises in each bloc
+        day.wodBlocs.forEach(bloc => {
+          bloc.exercises = bloc.exercises.filter(ex => {
+            // Keep exercise if it has no specific muscle group
+            if (!ex.muscleGroup) return true;
+            
+            // Remove if muscle group is in affected body parts
+            // We assume case-insensitive match or exact match depending on data
+            // Since both are controlled enums/strings, exact match is expected.
+            return !injury.affectedBodyParts.includes(ex.muscleGroup);
+          });
+        });
+
+        // 2. Remove blocs that have no exercises left
+        day.wodBlocs = day.wodBlocs.filter(bloc => bloc.exercises.length > 0);
+      });
+    });
+
+    return newProgram;
   },
 
   selectDefaultProgram: async (profile: AthleteProfileDTO): Promise<ProgramJSON> => {
     console.log(`[DeterministicLogic] Selecting default program for profile: ${JSON.stringify(profile)}`);
     
-    // 1. Fetch system programs
-    let availablePrograms = await db.select().from(programs).where(eq(programs.creatorId, SYSTEM_ADMIN_ID));
+    // 1. Fetch candidate programs from default_programs table
+    const candidates = await db.select({
+        program: programs,
+        meta: defaultPrograms
+    })
+    .from(defaultPrograms)
+    .innerJoin(programs, eq(defaultPrograms.programId, programs.id));
     
-    if (availablePrograms.length === 0) {
-        console.warn("No system programs found. Falling back to all programs.");
-        availablePrograms = await db.select().from(programs);
-        if (availablePrograms.length === 0) throw new Error("No programs available in the database.");
+    if (candidates.length === 0) {
+        throw new Error("No default programs configured in the database.");
     }
 
-    // 2. Fetch Goal Labels
-    let goalLabels: string[] = [];
-    if (profile.goals && profile.goals.length > 0) {
-        const goalRecords = await db.select().from(goals).where(inArray(goals.id, profile.goals));
-        goalLabels = goalRecords.map(g => g.label);
-    }
-
-    // 3. Score programs based on goals
-    const goalKeywords: Record<string, string[]> = {
-        'Weight Loss': ['cardio', 'burn', 'fat', 'loss', 'metcon', 'hiit'],
-        'Weight Gain': ['hypertrophy', 'mass', 'bulk', 'strength'],
-        'Build Muscle': ['hypertrophy', 'muscle', 'bodybuilding'],
-        'Improve Cardio': ['cardio', 'run', 'endurance', 'stamina'],
-        'Focus Legs': ['leg', 'squat'],
-        'Focus Upper Body': ['upper', 'bench', 'press'],
-        'Flexibility': ['yoga', 'stretch', 'mobility'],
-        'Strength': ['strength', 'power', 'lift', 'heavy'],
-    };
-
-    let bestProgram = availablePrograms[0];
+    // 2. Score programs based on Goal ID match
+    let bestProgram = candidates[0].program;
     let bestScore = -1;
 
-    for (const prog of availablePrograms) {
+    for (const cand of candidates) {
         let score = 0;
-        const text = `${prog.title} ${prog.description || ''}`.toLowerCase();
         
-        for (const label of goalLabels) {
-            const keywords = goalKeywords[label] || [];
-            for (const keyword of keywords) {
-                if (text.includes(keyword.toLowerCase())) {
-                    score += 1;
-                }
-            }
+        // Direct Goal Match (High Priority)
+        if (cand.meta.goalId && profile.goals.includes(cand.meta.goalId)) {
+            score += 10; 
         }
         
-        if (text.includes('builder') || text.includes('general')) {
-            score += 0.5;
-        }
-
+        // Secondary Criteria (Gender, Age) - Optional implementation
+        // if (cand.meta.gender && cand.meta.gender === profile.gender) score += 2;
+        
+        // Fallback scoring or tie-breaking logic could go here
+        
         if (score > bestScore) {
             bestScore = score;
-            bestProgram = prog;
+            bestProgram = cand.program;
         }
     }
 

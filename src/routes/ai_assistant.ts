@@ -4,6 +4,7 @@ import { deterministicLogic } from '../services/ai_assistant/deterministic_logic
 import { db } from '../db/index.js';
 import { athleteInjuries, programPersonalizations } from '../db/ai_assistant.js';
 import { eq, and } from 'drizzle-orm';
+import { requireAuth } from '../middleware/auth.middleware.js';
 
 const router = Router();
 const aiManager = new AIAssistantManager(deterministicLogic);
@@ -11,7 +12,7 @@ const aiManager = new AIAssistantManager(deterministicLogic);
 /**
  * Adapt program for injury
  */
-router.post('/adapt-injury', async (req: Request, res: Response) => {
+router.post('/adapt-injury', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     if (!user) return res.status(401).json({ message: "Unauthorized" });
@@ -30,27 +31,35 @@ router.post('/adapt-injury', async (req: Request, res: Response) => {
 });
 
 /**
- * Cancel injury and revert to original program
+ * Get active injuries
  */
-router.post('/cancel-injury', async (req: Request, res: Response) => {
+router.get('/active-injuries', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     if (!user) return res.status(401).json({ message: "Unauthorized" });
 
-    // 1. Mark all active injuries as resolved
-    await db.update(athleteInjuries)
-      .set({ isActive: false, resolvedAt: new Date() })
-      .where(and(eq(athleteInjuries.userId, user.id), eq(athleteInjuries.isActive, true)));
+    const injuries = await aiManager.getActiveInjuries(user.id);
+    res.status(200).json(injuries);
+  } catch (error: any) {
+    console.error("Error in /active-injuries:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
 
-    // 2. Remove personalizations of type 'injury_adaptation' for the current week
-    // Note: In a more complex app, we might want to archive them instead.
-    await db.delete(programPersonalizations)
-      .where(and(
-        eq(programPersonalizations.userId, user.id),
-        eq(programPersonalizations.personalizationType, 'injury_adaptation')
-      ));
+/**
+ * Cancel injury and revert to original program
+ */
+router.post('/cancel-injury', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    if (!user) return res.status(401).json({ message: "Unauthorized" });
 
-    res.status(200).json({ message: "Injury cancelled and program reverted" });
+    const { injuryId } = req.body;
+    if (!injuryId) return res.status(400).json({ message: "Missing injuryId" });
+
+    const updatedProgram = await aiManager.cancelInjury(user.id, injuryId);
+
+    res.status(200).json({ message: "Injury cancelled and program updated", program: updatedProgram });
   } catch (error: any) {
     console.error("Error in /cancel-injury:", error);
     res.status(500).json({ message: error.message });
@@ -60,7 +69,7 @@ router.post('/cancel-injury', async (req: Request, res: Response) => {
 /**
  * Reschedule missed workout
  */
-router.post('/reschedule', async (req: Request, res: Response) => {
+router.post('/reschedule', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     if (!user) return res.status(401).json({ message: "Unauthorized" });

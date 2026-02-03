@@ -47,6 +47,7 @@ export interface ExerciseJSON {
   reps?: number;
   time?: string;
   type?: string;
+  muscleGroup?: string;
 }
 
 export interface TrainingLogicProvider {

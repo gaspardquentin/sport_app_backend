@@ -31,27 +31,73 @@ export class AIAssistantManager {
       isActive: true,
     });
 
-    // 2. Get current program
-    const [enrollment] = await db.select().from(enrollments).where(eq(enrollments.userId, userId));
-    if (!enrollment) throw new Error("User not enrolled in any program");
+    return this.recalculateProgramForInjuries(userId);
+  }
 
-    const currentWeek = Math.ceil(enrollment.currentDay / 7);
-    const originalProgram = await serializeProgramWeek(enrollment.programId, currentWeek);
+  async cancelInjury(userId: string, injuryId: string): Promise<ProgramJSON> {
+    await db.update(athleteInjuries)
+        .set({ isActive: false, resolvedAt: new Date() })
+        .where(and(eq(athleteInjuries.id, injuryId), eq(athleteInjuries.userId, userId)));
+    
+    return this.recalculateProgramForInjuries(userId);
+  }
 
-    // 3. Call deterministic logic
-    const adaptedProgram = await this.logicProvider.adaptProgramForInjury(originalProgram, injury);
+  async recalculateProgramForInjuries(userId: string): Promise<ProgramJSON> {
+    // Get all active injuries
+    const injuries = await db.select().from(athleteInjuries)
+        .where(and(eq(athleteInjuries.userId, userId), eq(athleteInjuries.isActive, true)));
+    
+    // Get ALL current program enrollments
+    const userEnrollments = await db.select().from(enrollments).where(eq(enrollments.userId, userId));
+    if (userEnrollments.length === 0) throw new Error("User not enrolled in any program");
 
-    // 4. Save personalization
-    await db.insert(programPersonalizations).values({
-      id: uuidv4(),
-      userId,
-      originalProgramId: enrollment.programId,
-      weekNumber: currentWeek,
-      personalizationType: 'injury_adaptation',
-      data: adaptedProgram as any,
-    });
+    let lastAdaptedProgram: ProgramJSON | null = null;
 
-    return adaptedProgram;
+    for (const enrollment of userEnrollments) {
+        const currentWeek = Math.ceil(enrollment.currentDay / 7);
+        
+        // Start with FRESH template
+        let program = await serializeProgramWeek(enrollment.programId, currentWeek);
+
+        // Apply ALL injuries sequentially
+        for (const inj of injuries) {
+            const injuryDTO: InjuryDTO = {
+                description: inj.description,
+                affectedBodyParts: inj.affectedBodyParts as string[],
+                severity: inj.severity
+            };
+            program = await this.logicProvider.adaptProgramForInjury(program, injuryDTO);
+        }
+
+        // Save personalization for THIS program
+        // We use a specific ID based on user+program+week to avoid infinite insert growth? 
+        // No, UUID is fine, assuming we query by 'latest'.
+        await db.insert(programPersonalizations).values({
+            id: uuidv4(),
+            userId,
+            originalProgramId: enrollment.programId,
+            weekNumber: currentWeek,
+            personalizationType: 'injury_adaptation',
+            data: program as any,
+        });
+
+        lastAdaptedProgram = program;
+    }
+
+    return lastAdaptedProgram!;
+  }
+
+  async getActiveInjuries(userId: string): Promise<InjuryDTO[] & { id: string; createdAt: Date }[]> {
+    const injuries = await db.select().from(athleteInjuries)
+        .where(and(eq(athleteInjuries.userId, userId), eq(athleteInjuries.isActive, true)));
+    
+    return injuries.map(inj => ({
+      id: inj.id,
+      description: inj.description,
+      affectedBodyParts: inj.affectedBodyParts as string[],
+      severity: inj.severity as 'low' | 'medium' | 'high',
+      createdAt: inj.createdAt
+    }));
   }
 
   /**

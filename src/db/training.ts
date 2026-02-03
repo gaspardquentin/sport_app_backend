@@ -1,31 +1,25 @@
 import { pgTable, pgEnum, text, integer, timestamp, boolean, uuid, check, interval, primaryKey } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { user } from "./schema.js";
+import { goals } from "./goals.js";
 
 export const exerciseType = pgEnum('exercise_type', ['cardio', 'strengh', 'flexibility', 'skill', 'other']);
+export const muscleGroupsEnum = pgEnum('muscle_groups', ['legs', 'arms', 'chest', 'back', 'shoulders', 'abs', 'full_body']);
 
-/*
-String id
-String title
-int sets
-int? reps
-Duration? time
-ExerciseType type
-*/
 export const exercises = pgTable("exercises", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   sets: integer("sets").notNull().default(1),
   reps: integer("reps"),
   time: interval("time"),
-  type: exerciseType()
+  type: exerciseType(),
+  muscleGroup: muscleGroupsEnum('muscle_group'),
 },
   (table) => [
     check("sets_check", sql`${table.sets} > 0`),
     check("reps_check", sql`${table.reps} > 0`),
   ],
 );
-
 
 export const wodBlocs = pgTable("wod_blocs", {
   id: text("id").primaryKey(),
@@ -64,37 +58,21 @@ export const dayPlanWodBlocs = pgTable("day_plan_wod_blocs", {
 }));
 
 export const enrollments = pgTable("enrollments", {
-
   userId: text("user_id").notNull().references(() => user.id),
-
   programId: text("program_id").notNull().references(() => programs.id),
-
   currentDay: integer("current_day").notNull().default(1),
-
   joinedAt: timestamp("joined_at").defaultNow().notNull(),
-
 }, (table) => ({
-
   pk: primaryKey({ columns: [table.userId, table.programId] }),
-
 }));
 
-
-
 export const defaultPrograms = pgTable("default_programs", {
-
   id: text("id").primaryKey(),
-
   programId: text("program_id").notNull().references(() => programs.id),
-
   gender: text("gender"),
-
   minAge: integer("min_age"),
-
   maxAge: integer("max_age"),
-
-  goal: exerciseType("goal"),
-
+  goal: exerciseType("goal"), 
+  goalId: text("goal_id").references(() => goals.id),
   level: text("level"),
-
 });

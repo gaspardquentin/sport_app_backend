@@ -1,6 +1,7 @@
 import { db } from './src/db/index.js';
 import { programs, dayPlans, wodBlocs, exercises, dayPlanWodBlocs, wodBlocExercises, defaultPrograms } from './src/db/training.js';
 import { user } from './src/db/schema.js';
+import { goals } from './src/db/goals.js';
 import { v4 as uuidv4 } from 'uuid';
 import { eq } from 'drizzle-orm';
 
@@ -8,6 +9,16 @@ const SYSTEM_ADMIN_ID = 'system_admin_001';
 
 async function seed() {
   console.log('Seeding System Default Programs...');
+
+  // 0. Fetch Goal IDs
+  const allGoals = await db.select().from(goals);
+  const goalMap = new Map(allGoals.map(g => [g.code, g.id]));
+
+  const getGoalId = (code: string) => {
+      const id = goalMap.get(code);
+      if (!id) throw new Error(`Goal code ${code} not found in DB`);
+      return id;
+  };
 
   // 1. Ensure System Admin User (Keep it for creatorId constraint)
   const [sysUser] = await db.select().from(user).where(eq(user.id, SYSTEM_ADMIN_ID));
@@ -39,14 +50,14 @@ async function seed() {
   };
 
   // Helper to create Program
-  const createProgram = async (title: string, description: string, daysData: any[], typeTag: 'cardio' | 'strengh' | 'flexibility') => {
+  const createProgram = async (title: string, description: string, daysData: any[], goalCode: string) => {
     const existing = await db.select().from(programs).where(eq(programs.creatorId, SYSTEM_ADMIN_ID));
     const duplicate = existing.find(p => p.title === title);
     
     let programId = duplicate?.id;
 
     if (duplicate) {
-        console.log(`Program '${title}' already exists. Skipping.`);
+        console.log(`Program '${title}' already exists.`);
     } else {
         programId = uuidv4();
         await db.insert(programs).values({
@@ -99,10 +110,18 @@ async function seed() {
         await db.insert(defaultPrograms).values({
             id: uuidv4(),
             programId: programId!,
-            goal: typeTag,
-            // optional: gender, age ranges
+            goalId: getGoalId(goalCode),
+            // We can leave 'goal' enum null as we migrated logic
         });
-        console.log(`Linked '${title}' to default_programs with goal '${typeTag}'`);
+        console.log(`Linked '${title}' to default_programs with goal '${goalCode}'`);
+    } else {
+        // Update goalId if missing
+        if (!defaults[0].goalId) {
+             await db.update(defaultPrograms)
+                .set({ goalId: getGoalId(goalCode) })
+                .where(eq(defaultPrograms.id, defaults[0].id));
+             console.log(`Updated '${title}' goal link.`);
+        }
     }
   };
 
@@ -133,7 +152,7 @@ async function seed() {
             ]
         }
     ],
-    'cardio'
+    'weight_loss' // Goal Code
   );
 
   // 2. Muscle Builder
@@ -167,7 +186,7 @@ async function seed() {
             ]
         }
     ],
-    'strengh'
+    'build_muscle' // Goal Code
   );
 
   // 3. General Fitness
@@ -194,7 +213,7 @@ async function seed() {
             ]
         }
     ],
-    'flexibility'
+    'strength' // Goal Code (or improve_cardio? Let's say strength for now)
   );
 
   console.log('System Programs Seeded.');

@@ -57,6 +57,20 @@
       "when": 1769945688104,
       "tag": "0007_tan_tana_nile",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1769971502329,
+      "tag": "0008_blushing_big_bertha",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1770125658389,
+      "tag": "0009_early_xavin",
+      "breakpoints": true
     }
   ]
 }
