@@ -40,7 +40,7 @@ export const auth = betterAuth({
     }
   },
   callbacks: {
-    session: async ({ session, user }) => {
+    session: async ({ session, user }: { session: any, user: any }) => {
       return {
         ...session,
         user: {
@@ -62,7 +62,7 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: true
+    requireEmailVerification: false
   },
   baseURL: process.env.BETTER_AUTH_URL,
   basePath: "/api/v1/auth",
