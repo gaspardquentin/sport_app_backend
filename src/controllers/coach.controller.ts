@@ -1,8 +1,9 @@
 import { Request, Response } from 'express';
 import { db } from '../db/index.js';
-import { user as userSchema } from '../db/schema.js';
-import { enrollments, programs } from '../db/training.js';
-import { eq, and, like, isNull, ne, or, ilike } from 'drizzle-orm';
+import { user as userSchema, coachAthletes } from '../db/schema.js';
+import { enrollments, programs, defaultPrograms } from '../db/training.js';
+import { eq, and, like, isNull, ne, or, ilike, inArray } from 'drizzle-orm';
+import { handleCoachDisconnect } from '../services/enrollment.service.js';
 
 // GET /coach/athletes
 export const getCoachAthletes = async (req: Request, res: Response) => {
@@ -10,6 +11,7 @@ export const getCoachAthletes = async (req: Request, res: Response) => {
         const currentUser = (req as any).user;
         if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
 
+        // Fetch athletes from the coach_athletes join table
         const athletes = await db.select({
             id: userSchema.id,
             name: userSchema.name,
@@ -18,8 +20,9 @@ export const getCoachAthletes = async (req: Request, res: Response) => {
             image: userSchema.image,
             role: userSchema.role,
         })
-        .from(userSchema)
-        .where(eq(userSchema.coachId, currentUser.id));
+        .from(coachAthletes)
+        .innerJoin(userSchema, eq(coachAthletes.athleteId, userSchema.id))
+        .where(eq(coachAthletes.coachId, currentUser.id));
 
         // For each athlete, get their current assigned programs
         const athletesWithProgram = await Promise.all(athletes.map(async (athlete) => {
@@ -50,6 +53,7 @@ export const searchAvailableAthletes = async (req: Request, res: Response) => {
         const { query } = req.query;
         if (!query || typeof query !== 'string') return res.json([]);
 
+        // Now we search all athletes who allow invites, regardless of coach status (since they can have multiple)
         const results = await db.select({
             id: userSchema.id,
             name: userSchema.name,
@@ -61,7 +65,7 @@ export const searchAvailableAthletes = async (req: Request, res: Response) => {
         .where(
             and(
                 eq(userSchema.role, 'athlete'),
-                isNull(userSchema.coachId), // Only athletes without a coach
+                eq(userSchema.allowInvites, true),
                 or(
                     ilike(userSchema.name, `%${query}%`), 
                     ilike(userSchema.email, `%${query}%`)
@@ -78,25 +82,9 @@ export const searchAvailableAthletes = async (req: Request, res: Response) => {
 };
 
 // POST /coach/athletes/:athleteId
+// @deprecated - Use Invitation System
 export const addAthlete = async (req: Request, res: Response) => {
-    try {
-        const currentUser = (req as any).user;
-        const { athleteId } = req.params;
-
-        // Verify athlete exists and has no coach
-        const athlete = await db.select().from(userSchema).where(eq(userSchema.id, athleteId)).then(r => r[0]);
-        if (!athlete) return res.status(404).json({ message: "Athlete not found" });
-        if (athlete.coachId) return res.status(400).json({ message: "Athlete already has a coach" });
-
-        await db.update(userSchema)
-            .set({ coachId: currentUser.id })
-            .where(eq(userSchema.id, athleteId));
-
-        res.json({ message: "Athlete added successfully" });
-    } catch (error) {
-        console.error("Error adding athlete:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
+    res.status(410).json({ message: "This endpoint is deprecated. Use invitations system." });
 };
 
 // DELETE /coach/athletes/:athleteId
@@ -105,9 +93,16 @@ export const removeAthlete = async (req: Request, res: Response) => {
         const currentUser = (req as any).user;
         const { athleteId } = req.params;
 
+        await db.delete(coachAthletes)
+            .where(and(eq(coachAthletes.coachId, currentUser.id), eq(coachAthletes.athleteId, athleteId)));
+
+        // Also cleanup legacy field if it matches
         await db.update(userSchema)
             .set({ coachId: null })
             .where(and(eq(userSchema.id, athleteId), eq(userSchema.coachId, currentUser.id)));
+
+        // Remove coach's programs and re-assign default if no coaches left
+        await handleCoachDisconnect(athleteId, currentUser.id);
 
         res.json({ message: "Athlete removed successfully" });
     } catch (error) {
@@ -122,12 +117,12 @@ export const assignProgram = async (req: Request, res: Response) => {
         const { athleteId, programId } = req.body;
         const currentUser = (req as any).user;
 
-        // 1. Verify Athlete belongs to Coach
-        const athlete = await db.select().from(userSchema)
-            .where(and(eq(userSchema.id, athleteId), eq(userSchema.coachId, currentUser.id)))
+        // 1. Verify Athlete belongs to Coach (using new table)
+        const relation = await db.select().from(coachAthletes)
+            .where(and(eq(coachAthletes.coachId, currentUser.id), eq(coachAthletes.athleteId, athleteId)))
             .then(r => r[0]);
         
-        if (!athlete) return res.status(403).json({ message: "Athlete not found or not yours" });
+        if (!relation) return res.status(403).json({ message: "Athlete not found or not yours" });
 
         // 2. Check if already enrolled
         const existing = await db.select().from(enrollments)
@@ -139,7 +134,21 @@ export const assignProgram = async (req: Request, res: Response) => {
              return res.status(200).json({ message: "Program already assigned" });
         }
 
-        // 3. Add new enrollment
+        // 3. Remove default program enrollments
+        const defaultProgramIds = await db
+            .select({ programId: defaultPrograms.programId })
+            .from(defaultPrograms);
+
+        if (defaultProgramIds.length > 0) {
+            await db.delete(enrollments).where(
+                and(
+                    eq(enrollments.userId, athleteId),
+                    inArray(enrollments.programId, defaultProgramIds.map(dp => dp.programId))
+                )
+            );
+        }
+
+        // 4. Add new enrollment
         if (programId) {
             await db.insert(enrollments).values({
                 userId: athleteId,
@@ -163,11 +172,11 @@ export const unassignProgram = async (req: Request, res: Response) => {
         const currentUser = (req as any).user;
 
         // 1. Verify Athlete belongs to Coach
-        const athlete = await db.select().from(userSchema)
-            .where(and(eq(userSchema.id, athleteId), eq(userSchema.coachId, currentUser.id)))
+        const relation = await db.select().from(coachAthletes)
+            .where(and(eq(coachAthletes.coachId, currentUser.id), eq(coachAthletes.athleteId, athleteId)))
             .then(r => r[0]);
         
-        if (!athlete) return res.status(403).json({ message: "Athlete not found or not yours" });
+        if (!relation) return res.status(403).json({ message: "Athlete not found or not yours" });
 
         // 2. Remove enrollment
         await db.delete(enrollments)
