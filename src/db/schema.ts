@@ -1,8 +1,9 @@
-import { pgTable, pgEnum, text, timestamp, boolean, uuid, AnyPgColumn, integer, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, text, timestamp, boolean, uuid, AnyPgColumn, integer, jsonb, primaryKey } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 
 export const roleEnum = pgEnum('role', ['coach', 'athlete']);
+export const invitationStatusEnum = pgEnum('invitation_status', ['pending', 'accepted', 'declined']);
 
 
 export const user = pgTable("user", {
@@ -17,8 +18,26 @@ export const user = pgTable("user", {
   availabilityPerWeek: integer("availability_per_week").default(3),
   role: roleEnum("role").notNull().default("athlete"),
   coachId: text("coachId").references((): AnyPgColumn => user.id),
+  allowInvites: boolean("allowInvites").notNull().default(true),
   createdAt: timestamp("createdAt").notNull(),
   updatedAt: timestamp("updatedAt").notNull()
+});
+
+export const coachAthletes = pgTable("coach_athletes", {
+  coachId: text("coachId").notNull().references(() => user.id),
+  athleteId: text("athleteId").notNull().references(() => user.id),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.coachId, table.athleteId] }),
+}));
+
+export const invitations = pgTable("invitations", {
+  id: text("id").primaryKey(),
+  senderId: text("senderId").notNull().references(() => user.id),
+  receiverId: text("receiverId").notNull().references(() => user.id),
+  status: invitationStatusEnum("status").notNull().default("pending"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 });
 
 export const session = pgTable("session", {
