@@ -6,6 +6,7 @@ import { coachRoutes } from "./coach.routes.js";
 import aiAssistantRoutes from "./ai_assistant.js";
 import { goalsRoutes } from "./goals.routes.js";
 import { userRoutes } from "./user.routes.js";
+import { invitationRoutes } from "./invitation.routes.js";
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use("/coach", coachRoutes);
 router.use("/ai", aiAssistantRoutes);
 router.use("/goals", goalsRoutes);
 router.use("/users", userRoutes);
+router.use("/invitations", invitationRoutes);
 
 export default router;
